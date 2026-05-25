@@ -1,16 +1,33 @@
 import { View, FlatList, StyleSheet } from 'react-native';
-import { Text, Card, Chip, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Chip, ActivityIndicator, Button } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../src/services/api';
 import type { Service } from '../../src/types';
 
+import { useRouter } from 'expo-router';
+
 export default function ServiciosScreen() {
-  const { data: services, isLoading, isError } = useQuery({
-    queryKey: ['partner-services'],
+
+  const router = useRouter();
+
+    // Primero traemos el perfil del partner para obtener su id
+  const { data: partner } = useQuery({
+    queryKey: ['partner-me'],
     queryFn: async () => {
-      const { data } = await api.get<Service[]>('/services/my');
+      const { data } = await api.get('/partners/me');
       return data;
     },
+  });
+  
+
+  // Después traemos los servicios usando ese id
+  const { data: services, isLoading, isError } = useQuery({
+    queryKey: ['partner-services', partner?.id],
+    queryFn: async () => {
+      const { data } = await api.get<Service[]>(`/services/partner/${partner!.id}`);
+      return data;
+    },
+    enabled: !!partner?.id,
   });
 
   return (
@@ -24,6 +41,15 @@ export default function ServiciosScreen() {
       {!isLoading && services?.length === 0 && (
         <Text style={styles.empty}>No tenés servicios creados todavía.</Text>
       )}
+
+<Button
+  mode="contained"
+  icon="plus"
+  onPress={() => router.push('/(partner)/servicios/nuevo')}
+  style={{ margin: 16 }}
+>
+  Agregar servicio
+</Button>
 
       <FlatList
         data={services}

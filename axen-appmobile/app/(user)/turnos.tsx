@@ -1,8 +1,12 @@
 import { View, FlatList, StyleSheet } from 'react-native';
-import { Text, Card, Chip, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Chip, ActivityIndicator, Button } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../src/services/api';
 import type { Booking } from '../../src/types';
+
+import { useRouter } from 'expo-router';
+
+
 
 const STATUS_LABEL: Record<Booking['status'], string> = {
   pending_payment: 'Pago pendiente',
@@ -21,10 +25,13 @@ const STATUS_COLOR: Record<Booking['status'], string> = {
 };
 
 export default function TurnosScreen() {
+
+  const router = useRouter();
+
   const { data: bookings, isLoading, isError } = useQuery({
     queryKey: ['bookings'],
     queryFn: async () => {
-      const { data } = await api.get<Booking[]>('/bookings');
+      const { data } = await api.get<Booking[]>('/bookings/my');
       return data;
     },
   });
@@ -64,6 +71,18 @@ export default function TurnosScreen() {
                   })}
                 </Text>
               )}
+
+              {item.status === 'completed' && (
+  <Button
+    mode="text"
+    compact
+    icon="star-outline"
+    onPress={() => router.push(`/(user)/resena/${item.id}`)}
+  >
+    Dejar reseña
+  </Button>
+)}
+
               <Chip
                 style={[styles.chip, { backgroundColor: STATUS_COLOR[item.status] + '20' }]}
                 textStyle={{ color: STATUS_COLOR[item.status] }}

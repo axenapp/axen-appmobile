@@ -3,6 +3,9 @@ import { Text, Card, Chip, ActivityIndicator } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../src/services/api';
 import type { Booking } from '../../src/types';
+import { useRouter } from 'expo-router';
+
+
 
 const STATUS_LABEL: Record<Booking['status'], string> = {
   pending_payment: 'Pago pendiente',
@@ -21,6 +24,9 @@ const STATUS_COLOR: Record<Booking['status'], string> = {
 };
 
 export default function PartnerTurnosScreen() {
+
+  const router = useRouter();
+
   const { data: bookings, isLoading, isError } = useQuery({
     queryKey: ['partner-bookings'],
     queryFn: async () => {
@@ -46,7 +52,7 @@ export default function PartnerTurnosScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <Card style={styles.card} mode="outlined">
+          <Card style={styles.card} mode="outlined" onPress={() => router.push(`/(partner)/turno/${item.id}`)}>
             <Card.Title
               title={item.service?.name ?? 'Servicio'}
               subtitle={

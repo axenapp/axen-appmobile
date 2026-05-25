@@ -45,6 +45,16 @@ export default function PartnerLayout() {
           ),
         }}
       />
+<Tabs.Screen
+  name="slots"
+  options={{
+    title: 'Horarios',
+    tabBarIcon: ({ color, size }) => (
+      <MaterialCommunityIcons name="clock-outline" color={color} size={size} />
+    ),
+  }}
+/>
+
     </Tabs>
   );
 }
