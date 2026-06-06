@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ScrollView } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
 import type { AuthResponse } from '../../src/types';
+import { brandColors, darkInputTheme } from '../../src/theme';
 
 export default function RegisterScreen() {
   const { login } = useAuth();
@@ -22,10 +23,8 @@ export default function RegisterScreen() {
       setError('Completá los campos obligatorios');
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
       const { data } = await api.post<AuthResponse>('/auth/register', {
         name,
@@ -42,105 +41,144 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <Text variant="headlineMedium" style={styles.title}>
-          Crear cuenta
-        </Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          Creá tu cuenta de usuario
-        </Text>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={brandColors.primary} />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
 
-        <TextInput
-          label="Nombre completo *"
-          value={name}
-          onChangeText={setName}
-          mode="outlined"
-          style={styles.input}
-        />
+          <Text style={styles.logo}>axen</Text>
+          <Text style={styles.tagline}>Creá tu cuenta de usuario</Text>
 
-        <TextInput
-          label="Email *"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          mode="outlined"
-          style={styles.input}
-        />
+          <TextInput
+            label="Nombre completo *"
+            value={name}
+            onChangeText={setName}
+            mode="outlined"
+            textColor="#ffffff"
+            outlineColor="rgba(101, 154, 186, 0.4)"
+            activeOutlineColor={brandColors.secondary}
+            theme={darkInputTheme}
+            style={styles.input}
+          />
 
-        <TextInput
-          label="Teléfono"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          mode="outlined"
-          style={styles.input}
-        />
+          <TextInput
+            label="Email *"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            mode="outlined"
+            textColor="#ffffff"
+            outlineColor="rgba(101, 154, 186, 0.4)"
+            activeOutlineColor={brandColors.secondary}
+            theme={darkInputTheme}
+            style={styles.input}
+          />
 
-        <TextInput
-          label="Contraseña *"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          mode="outlined"
-          style={styles.input}
-        />
+          <TextInput
+            label="Teléfono"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            mode="outlined"
+            textColor="#ffffff"
+            outlineColor="rgba(101, 154, 186, 0.4)"
+            activeOutlineColor={brandColors.secondary}
+            theme={darkInputTheme}
+            style={styles.input}
+          />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          <TextInput
+            label="Contraseña *"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            mode="outlined"
+            textColor="#ffffff"
+            outlineColor="rgba(101, 154, 186, 0.4)"
+            activeOutlineColor={brandColors.secondary}
+            theme={darkInputTheme}
+            style={styles.input}
+          />
 
-        <Button
-          mode="contained"
-          onPress={handleRegister}
-          loading={loading}
-          disabled={loading}
-          style={styles.button}
-        >
-          Registrarme
-        </Button>
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        <Button
-          mode="text"
-          onPress={() => router.back()}
-          style={styles.link}
-        >
-          Ya tengo cuenta
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Button
+            mode="contained"
+            onPress={handleRegister}
+            loading={loading}
+            disabled={loading}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Registrarme
+          </Button>
+
+          <Button
+            mode="text"
+            onPress={() => router.back()}
+            style={styles.link}
+            textColor={brandColors.cream}
+          >
+            Ya tengo cuenta
+          </Button>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: brandColors.primary,
   },
   inner: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: 28,
   },
-  title: {
-    fontWeight: 'bold',
-    marginBottom: 4,
+  logo: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: brandColors.cream,
+    letterSpacing: 3,
+    marginBottom: 8,
   },
-  subtitle: {
-    color: '#666',
-    marginBottom: 32,
+  tagline: {
+    fontSize: 15,
+    color: 'rgba(255, 238, 212, 0.7)',
+    marginBottom: 36,
   },
   input: {
+    marginBottom: 14,
+    backgroundColor: 'rgba(101, 154, 186, 0.1)',
+  },
+  errorBox: {
+    backgroundColor: 'rgba(193, 17, 30, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(193, 17, 30, 0.4)',
+    borderRadius: 6,
+    padding: 12,
     marginBottom: 12,
   },
-  error: {
-    color: '#d32f2f',
-    marginBottom: 12,
+  errorText: {
+    color: '#ff6b75',
+    fontSize: 13,
   },
   button: {
-    marginTop: 8,
+    marginTop: 4,
+    borderRadius: 6,
+  },
+  buttonContent: {
     paddingVertical: 4,
   },
   link: {

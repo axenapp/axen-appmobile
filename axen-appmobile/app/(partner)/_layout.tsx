@@ -1,12 +1,15 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { brandColors } from '../../src/theme';
 
 export default function PartnerLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1976D2',
+        tabBarActiveTintColor: brandColors.accent,
+        tabBarInactiveTintColor: '#888',
+        tabBarStyle: { borderTopColor: '#eee' },
       }}
     >
       <Tabs.Screen

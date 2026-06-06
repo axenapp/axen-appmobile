@@ -3,7 +3,7 @@ import { Text, Card, ActivityIndicator } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../src/services/api';
 import type { Partner } from '../../src/types';
-
+import { brandColors } from '../../src/theme';
 import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
@@ -81,6 +81,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
+    borderLeftWidth: 4,
+    borderLeftColor: brandColors.secondary,
   },
   description: {
     color: '#555',

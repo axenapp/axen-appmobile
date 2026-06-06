@@ -1,13 +1,35 @@
+import { useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
-import { Text, Card, Button, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../src/services/api';
 import type { Service, Slot } from '../../../src/types';
 
+function getTomorrow(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 export default function ReservarScreen() {
   const { serviceId } = useLocalSearchParams<{ serviceId: string }>();
   const router = useRouter();
+  const [selectedDate, setSelectedDate] = useState<Date>(getTomorrow());
 
   const { data: service, isLoading: loadingService } = useQuery({
     queryKey: ['service', serviceId],
@@ -17,13 +39,20 @@ export default function ReservarScreen() {
     },
   });
 
+  const dateStr = formatDate(selectedDate);
+
   const { data: slots, isLoading: loadingSlots } = useQuery({
-    queryKey: ['slots', serviceId],
+    queryKey: ['slots-available', serviceId, dateStr],
     queryFn: async () => {
-      const { data } = await api.get<Slot[]>(`/slots?serviceId=${serviceId}&status=free`);
+      const { data } = await api.get<Slot[]>(
+        `/slots/available?serviceId=${serviceId}&date=${dateStr}`,
+      );
       return data;
     },
+    enabled: !!serviceId,
   });
+
+  const isPrevDisabled = formatDate(selectedDate) <= formatDate(getTomorrow());
 
   return (
     <View style={styles.container}>
@@ -43,14 +72,30 @@ export default function ReservarScreen() {
         </View>
       )}
 
-      <Text variant="titleMedium" style={styles.sectionTitle}>
-        Elegí un horario
-      </Text>
+      {/* Navegación de fecha */}
+      <View style={styles.dateNav}>
+        <IconButton
+          icon="chevron-left"
+          onPress={() => setSelectedDate(d => addDays(d, -1))}
+          disabled={isPrevDisabled}
+        />
+        <Text variant="titleMedium" style={styles.dateLabel}>
+          {selectedDate.toLocaleDateString('es-AR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
+        </Text>
+        <IconButton
+          icon="chevron-right"
+          onPress={() => setSelectedDate(d => addDays(d, 1))}
+        />
+      </View>
 
       {loadingSlots && <ActivityIndicator style={styles.loader} />}
 
-      {!loadingSlots && slots?.length === 0 && (
-        <Text style={styles.empty}>No hay turnos disponibles por ahora.</Text>
+      {!loadingSlots && (!slots || slots.length === 0) && (
+        <Text style={styles.empty}>No hay turnos disponibles para este día.</Text>
       )}
 
       <FlatList
@@ -60,15 +105,11 @@ export default function ReservarScreen() {
         renderItem={({ item }) => (
           <Card style={styles.card} mode="outlined">
             <Card.Title
-              title={new Date(item.datetime).toLocaleDateString('es-AR', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })}
-              subtitle={new Date(item.datetime).toLocaleTimeString('es-AR', {
+              title={new Date(item.datetime).toLocaleTimeString('es-AR', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
+              subtitle={`${service?.durationMinutes ?? ''} min`}
             />
             <Card.Actions>
               <Button
@@ -96,7 +137,14 @@ const styles = StyleSheet.create({
   header: { padding: 16 },
   title: { fontWeight: 'bold' },
   subtitle: { color: '#666', marginTop: 4 },
-  sectionTitle: { fontWeight: '600', marginHorizontal: 16, marginTop: 8, marginBottom: 8 },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  dateLabel: { flex: 1, textAlign: 'center', fontWeight: '600', textTransform: 'capitalize' },
   loader: { marginTop: 24 },
   empty: { color: '#888', textAlign: 'center', marginTop: 32 },
   list: { paddingHorizontal: 16, paddingBottom: 32, gap: 10 },
