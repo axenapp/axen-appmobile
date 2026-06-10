@@ -8,6 +8,7 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updated: Partial<User>) => Promise<void>;
   isAuthenticated: boolean;
   isPartner: boolean;
   isLoading: boolean;
@@ -62,6 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = async (updated: Partial<User>) => {
+    if (!user) return;
+    const newUser = { ...user, ...updated };
+    await SecureStore.setItemAsync('user', JSON.stringify(newUser));
+    setUser(newUser);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -69,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         login,
         logout,
+        updateUser,
         isAuthenticated: !!token,
         isPartner: user?.role === 'partner',
         isLoading,

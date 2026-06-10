@@ -1,91 +1,246 @@
-import { View, StyleSheet } from 'react-native';
-import { Text, Button, Avatar, Divider } from 'react-native-paper';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
+} from 'react-native';
+import { Text } from 'react-native-paper';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import { brandColors } from '../../src/theme';
 
-export default function PerfilScreen() {
-  const { user, logout } = useAuth();
-
+// ── fila de menú ──────────────────────────────────────────
+function MenuItem({
+  icon,
+  label,
+  onPress,
+  danger,
+}: {
+  icon: string;
+  label: string;
+  onPress?: () => void;
+  danger?: boolean;
+}) {
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Avatar.Text
-          size={72}
-          label={user?.name?.slice(0, 2).toUpperCase() ?? 'U'}
-          style={styles.avatar}
-        />
-        <Text variant="titleLarge" style={styles.name}>
-          {user?.name}
-        </Text>
-        <Text variant="bodyMedium" style={styles.email}>
-          {user?.email}
-        </Text>
-      </View>
-
-      <Divider style={styles.divider} />
-
-      <View style={styles.info}>
-        {user?.phone && (
-          <Text variant="bodyMedium" style={styles.infoText}>
-            📞 {user.phone}
-          </Text>
-        )}
-        <Text variant="bodySmall" style={styles.infoText}>
-          Cuenta creada el{' '}
-          {new Date(user?.createdAt ?? '').toLocaleDateString('es-AR', { dateStyle: 'long' })}
-        </Text>
-      </View>
-
-      <View style={styles.actions}>
-        <Button
-          mode="outlined"
-          icon="logout"
-          onPress={logout}
-          style={styles.logoutButton}
-          textColor="#d32f2f"
-        >
-          Cerrar sesión
-        </Button>
-      </View>
-    </View>
+    <TouchableOpacity style={item.row} onPress={onPress} activeOpacity={0.6}>
+      <MaterialCommunityIcons
+        name={icon as any}
+        size={20}
+        color={danger ? brandColors.accent : '#555'}
+        style={item.icon}
+      />
+      <Text style={[item.label, danger && item.labelDanger]}>{label}</Text>
+      {!danger && (
+        <MaterialCommunityIcons name="chevron-right" size={20} color="#ccc" />
+      )}
+    </TouchableOpacity>
   );
 }
 
+const item = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  icon: { width: 28 },
+  label: { flex: 1, fontSize: 15, color: '#222' },
+  labelDanger: { color: brandColors.accent, fontWeight: '500' },
+});
+
+// ── pantalla ──────────────────────────────────────────────
+export default function PerfilScreen() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const initial = (user?.name ?? 'U').charAt(0).toUpperCase();
+  const firstName = user?.name?.split(' ')[0] ?? 'Usuario';
+
+  const handleLogout = () => {
+    Alert.alert('Cerrar sesión', '¿Seguro que querés salir?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Salir', style: 'destructive', onPress: logout },
+    ]);
+  };
+
+  return (
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
+        {/* ── AVATAR ── */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrapper}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </View>
+            <View style={styles.cameraBtn}>
+              <MaterialCommunityIcons name="camera" size={14} color="#fff" />
+            </View>
+          </View>
+          <Text style={styles.greeting}>¡Hola, {firstName}!</Text>
+        </View>
+
+        {/* ── PERFIL ── */}
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Perfil</Text>
+          <View style={styles.groupCard}>
+            <MenuItem
+              icon="account-outline"
+              label="Información personal"
+              onPress={() => router.push('/(user)/informacion-personal')}
+            />
+            <View style={styles.sep} />
+            <MenuItem icon="map-marker-outline" label="Direcciones" />
+            <View style={styles.sep} />
+            <MenuItem
+              icon="heart-outline"
+              label="Favoritos"
+              onPress={() => router.push('/(user)/favoritos')}
+            />
+          </View>
+        </View>
+
+        {/* ── ACTIVIDAD ── */}
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Actividad</Text>
+          <View style={styles.groupCard}>
+            <MenuItem icon="credit-card-outline" label="Medios de Pago" />
+          </View>
+        </View>
+
+        {/* ── CONFIGURACIÓN ── */}
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Configuración</Text>
+          <View style={styles.groupCard}>
+            <MenuItem icon="bell-outline"        label="Notificaciones" />
+            <View style={styles.sep} />
+            <MenuItem icon="information-outline" label="Información Legal" />
+            <View style={styles.sep} />
+            <MenuItem
+              icon="store-outline"
+              label="Registrar mi negocio"
+              onPress={() => router.push('/(auth)/register-partner' as any)}
+            />
+          </View>
+        </View>
+
+        {/* ── AYUDA ── */}
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Ayuda</Text>
+          <View style={styles.groupCard}>
+            <MenuItem icon="headset" label="Soporte técnico" />
+          </View>
+        </View>
+
+        {/* ── CERRAR SESIÓN ── */}
+        <View style={styles.logoutGroup}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="logout" size={20} color={brandColors.accent} />
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+    </>
+  );
+}
+
+// ── estilos ───────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f5f7fa',
+  },
+
+  /* Avatar */
+  avatarSection: {
     backgroundColor: '#fff',
-    paddingTop: 56,
-  },
-  header: {
     alignItems: 'center',
-    padding: 32,
+    paddingTop: 52,
+    paddingBottom: 28,
   },
-  avatar: {
-    backgroundColor: '#1976D2',
+  avatarWrapper: {
+    position: 'relative',
     marginBottom: 12,
   },
-  name: {
-    fontWeight: 'bold',
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: brandColors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  email: {
-    color: '#666',
-    marginTop: 4,
+  avatarText: {
+    color: '#fff',
+    fontSize: 38,
+    fontWeight: '800',
   },
-  divider: {
+  cameraBtn: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#555',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+
+  /* Grupos */
+  group: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  groupCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  sep: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginLeft: 48,
+  },
+
+  /* Cerrar sesión */
+  logoutGroup: {
+    marginTop: 20,
     marginHorizontal: 16,
+    marginBottom: 40,
   },
-  info: {
-    padding: 24,
-    gap: 8,
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
-  infoText: {
-    color: '#555',
-  },
-  actions: {
-    padding: 24,
-    marginTop: 'auto',
-  },
-  logoutButton: {
-    borderColor: '#d32f2f',
+  logoutText: {
+    fontSize: 15,
+    color: brandColors.accent,
+    fontWeight: '500',
   },
 });
