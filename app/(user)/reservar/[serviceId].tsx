@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -12,9 +12,19 @@ import { Text, ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import api from '../../../src/services/api';
 import type { Service, Slot } from '../../../src/types';
 import { brandColors } from '../../../src/theme';
+
+type PaymentType = 'credito' | 'debito' | 'mercadopago';
+interface SavedMethod { id: string; type: PaymentType; label: string; preferred: boolean; }
+
+const TYPE_INFO: Record<PaymentType, { icon: string; color: string }> = {
+  credito:     { icon: 'credit-card-outline',     color: '#1976d2' },
+  debito:      { icon: 'credit-card-chip-outline', color: '#2e7d32' },
+  mercadopago: { icon: 'alpha-m-circle-outline',   color: '#009ee3' },
+};
 
 // ── helpers de fecha ──────────────────────────────────────
 const DAY_SHORT: Record<number, string> = {
@@ -54,7 +64,6 @@ function getNextDays(n: number): Date[] {
   return Array.from({ length: n }, (_, i) => addDays(getTomorrow(), i));
 }
 
-const PAYMENT_METHODS = ['Efectivo', 'Débito', 'MercadoPago'];
 
 const IMPORTANT_ITEMS = [
   'Se solicita llegar 10 minutos antes para garantizar la atención.',
@@ -69,11 +78,39 @@ export default function ReservarScreen() {
   const router = useRouter();
 
   const days = getNextDays(6);
-  const [selectedDate, setSelectedDate] = useState<Date>(days[0]);
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<string>('Efectivo');
+  const [selectedDate,    setSelectedDate]    = useState<Date>(days[0]);
+  const [selectedSlot,    setSelectedSlot]    = useState<Slot | null>(null);
+  const [selectedMethodId, setSelectedMethodId] = useState<string>('efectivo');
+  const [savedMethods,    setSavedMethods]    = useState<SavedMethod[]>([]);
   const [accepted, setAccepted] = useState(false);
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    SecureStore.getItemAsync('payment_methods').then((raw) => {
+      const methods: SavedMethod[] = raw ? JSON.parse(raw) : [];
+      setSavedMethods(methods);
+      const preferred = methods.find((m) => m.preferred);
+      if (preferred) setSelectedMethodId(preferred.id);
+    });
+  }, []);
+
+  // Pills agrupados por tipo — uno por categoría, no por tarjeta individual
+  const allMethods = useMemo(() => {
+    const hasType = (t: PaymentType) => savedMethods.some((m) => m.type === t);
+    const list: { id: string; label: string; icon: string; color: string }[] = [
+      { id: 'efectivo',     label: 'Efectivo',    icon: 'cash',                      color: '#555'    },
+      { id: 'credito',      label: 'Crédito',     icon: 'credit-card-outline',        color: '#1976d2' },
+      { id: 'debito',       label: 'Débito',      icon: 'credit-card-chip-outline',   color: '#2e7d32' },
+      { id: 'mercadopago',  label: 'MercadoPago', icon: 'alpha-m-circle-outline',     color: '#009ee3' },
+    ];
+    // Si hay métodos guardados, mostrar solo los tipos que el usuario tiene + efectivo
+    if (savedMethods.length > 0) {
+      return list.filter((m) =>
+        m.id === 'efectivo' || hasType(m.id as PaymentType),
+      );
+    }
+    return list;
+  }, [savedMethods]);
 
   const dateStr = formatDate(selectedDate);
 
@@ -100,14 +137,17 @@ export default function ReservarScreen() {
 
   const handleReservar = () => {
     if (!canReserve) return;
+    const sid = Array.isArray(serviceId) ? serviceId[0] : (serviceId ?? '');
+    const method = allMethods.find((m) => m.id === selectedMethodId);
     router.push({
       pathname: '/(user)/confirmar',
       params: {
-        slotId: selectedSlot!.id,
-        serviceId,
-        paymentMethod: selectedPayment,
+        slotId:          selectedSlot!.id,
+        serviceId:       sid,
+        paymentMethod:   method?.label ?? 'Efectivo',
+        paymentMethodId: selectedMethodId,   // tipo: 'efectivo' | 'credito' | 'debito' | 'mercadopago'
         notes,
-        slotDatetime: selectedSlot!.datetime,
+        slotDatetime:    selectedSlot!.datetime,
       },
     });
   };
@@ -201,16 +241,21 @@ export default function ReservarScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Método de Pago</Text>
             <View style={styles.paymentRow}>
-              {PAYMENT_METHODS.map((method) => {
-                const active = selectedPayment === method;
+              {allMethods.map((method) => {
+                const active = selectedMethodId === method.id;
                 return (
                   <TouchableOpacity
-                    key={method}
+                    key={method.id}
                     style={[styles.paymentPill, active && styles.paymentPillActive]}
-                    onPress={() => setSelectedPayment(method)}
+                    onPress={() => setSelectedMethodId(method.id)}
                   >
+                    <MaterialCommunityIcons
+                      name={method.icon as any}
+                      size={15}
+                      color={active ? '#fff' : method.color}
+                    />
                     <Text style={[styles.paymentPillText, active && styles.paymentPillTextActive]}>
-                      {method}
+                      {' '}{method.label}
                     </Text>
                   </TouchableOpacity>
                 );

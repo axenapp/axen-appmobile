@@ -8,7 +8,7 @@ import { theme } from '../src/theme';
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading, isPartner } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -20,11 +20,7 @@ function RootLayoutNav() {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      if (isPartner) {
-        router.replace('/(partner)/dashboard');
-      } else {
-        router.replace('/(user)/home');
-      }
+      router.replace('/(user)/home');
     }
   }, [isAuthenticated, isLoading, segments]);
 

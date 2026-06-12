@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   ScrollView,
@@ -17,16 +18,26 @@ import type { Partner } from '../../src/types';
 import { brandColors } from '../../src/theme';
 
 const CATEGORIES = [
-  { id: 'peluqueria', label: 'Peluquería', emoji: '✂️',  bg: '#f5ece0' },
-  { id: 'salud',      label: 'Salud',      emoji: '🩺',  bg: '#e8f5e9' },
-  { id: 'estetica',   label: 'Estética',   emoji: '💆',  bg: '#fce4ec' },
-  { id: 'mascotas',   label: 'Mascotas',   emoji: '🐾',  bg: '#fff8e1' },
+  { id: 'Peluquería', label: 'Peluquería', emoji: '✂️',  bg: '#f5ece0' },
+  { id: 'Salud',      label: 'Salud',      emoji: '🩺',  bg: '#e8f5e9' },
+  { id: 'Estética',   label: 'Estética',   emoji: '💆',  bg: '#fce4ec' },
+  { id: 'Mascotas',   label: 'Mascotas',   emoji: '🐾',  bg: '#fff8e1' },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const catItemWidth = (width - 16 * 2 - 12) / 2; // padding 16 cada lado + gap 12
+  const catItemWidth = (width - 16 * 2 - 12) / 2;
+  const [search, setSearch] = useState('');
+
+  const handleSearch = () => {
+    const q = search.trim();
+    if (!q) {
+      router.push('/(user)/catalogo');
+    } else {
+      router.push({ pathname: '/(user)/catalogo', params: { search: q } });
+    }
+  };
 
   const { data: partners, isLoading } = useQuery({
     queryKey: ['partners'],
@@ -62,11 +73,17 @@ export default function HomeScreen() {
           <View style={styles.searchWrapper}>
             <View style={styles.searchBar}>
               <RNTextInput
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={handleSearch}
+                returnKeyType="search"
                 placeholder="Buscar servicio o negocio..."
                 placeholderTextColor="#aaa"
                 style={styles.searchInput}
               />
-              <MaterialCommunityIcons name="magnify" size={22} color="#aaa" />
+              <TouchableOpacity onPress={handleSearch} activeOpacity={0.7}>
+                <MaterialCommunityIcons name="magnify" size={22} color={brandColors.primary} />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -79,6 +96,7 @@ export default function HomeScreen() {
                     key={cat.id}
                     style={[styles.catItem, { width: catItemWidth }]}
                     activeOpacity={0.8}
+                    onPress={() => router.push({ pathname: '/(user)/catalogo', params: { category: cat.id } })}
                   >
                     <View style={[styles.catImage, { backgroundColor: cat.bg }]}>
                       <Text style={styles.catEmoji}>{cat.emoji}</Text>
@@ -307,11 +325,16 @@ const styles = StyleSheet.create({
   exploreBtn: {
     marginTop: 16,
     marginRight: 16,
+    marginLeft: 0,
+    backgroundColor: brandColors.primary,
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: 'center',
   },
   exploreBtnText: {
-    color: brandColors.secondary,
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

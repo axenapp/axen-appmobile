@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -136,7 +137,10 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Registrar negocio */}
-          <TouchableOpacity style={styles.registerBizBtn}>
+          <TouchableOpacity
+            style={styles.registerBizBtn}
+            onPress={() => Linking.openURL('http://localhost:5173/register-business')}
+          >
             <Text style={styles.registerBizText}>Quiero registrar un negocio</Text>
           </TouchableOpacity>
 

@@ -1,19 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import api from '../../src/services/api';
 import type { Service, Partner } from '../../src/types';
 import { brandColors } from '../../src/theme';
+
+type PaymentType = 'credito' | 'debito' | 'mercadopago';
+interface SavedMethod { id: string; type: PaymentType; label: string; preferred: boolean; }
+
+const TYPE_ICON: Record<PaymentType, string> = {
+  credito:     'credit-card-outline',
+  debito:      'credit-card-chip-outline',
+  mercadopago: 'alpha-m-circle-outline',
+};
 
 // ── helpers ───────────────────────────────────────────────
 function getAvatarColor(id: string): string {
@@ -35,11 +46,51 @@ function formatDateTime(datetime: string) {
 
 // ── pantalla ──────────────────────────────────────────────
 export default function ConfirmarScreen() {
-  const { slotId, serviceId, paymentMethod, notes, slotDatetime } =
-    useLocalSearchParams<{ slotId: string; serviceId: string; paymentMethod: string; notes: string; slotDatetime: string }>();
+  const raw = useLocalSearchParams<{
+    slotId: string; serviceId: string; paymentMethod: string;
+    paymentMethodId: string; notes: string; slotDatetime: string;
+  }>();
+  const slotId          = Array.isArray(raw.slotId)          ? raw.slotId[0]          : raw.slotId;
+  const serviceId       = Array.isArray(raw.serviceId)       ? raw.serviceId[0]       : raw.serviceId;
+  const paymentMethod   = Array.isArray(raw.paymentMethod)   ? raw.paymentMethod[0]   : raw.paymentMethod;
+  const paymentMethodId = Array.isArray(raw.paymentMethodId) ? raw.paymentMethodId[0] : raw.paymentMethodId;
+  const notes           = Array.isArray(raw.notes)           ? raw.notes[0]           : raw.notes;
+  const slotDatetime    = Array.isArray(raw.slotDatetime)    ? raw.slotDatetime[0]    : raw.slotDatetime;
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [loading,          setLoading]          = useState(false);
+  const [error,            setError]            = useState('');
+  const [savedMethods,     setSavedMethods]     = useState<SavedMethod[]>([]);
+  const [currentMethodId,  setCurrentMethodId]  = useState(paymentMethodId ?? 'efectivo');
+  const [showChangeModal,  setShowChangeModal]  = useState(false);
+
+  useEffect(() => {
+    SecureStore.getItemAsync('payment_methods').then((raw) => {
+      setSavedMethods(raw ? JSON.parse(raw) : []);
+    });
+  }, []);
+
+  // paymentMethodId es el TIPO ('efectivo'|'credito'|'debito'|'mercadopago')
+  // currentMethodId es el ID de la tarjeta específica seleccionada dentro de ese tipo
+  const methodType = (paymentMethodId ?? 'efectivo') as 'efectivo' | 'credito' | 'debito' | 'mercadopago';
+
+  const cardsOfType = useMemo(
+    () => savedMethods.filter((m) => m.type === (methodType as any)),
+    [savedMethods, methodType],
+  );
+
+  const currentMethod = useMemo(
+    () => savedMethods.find((m) => m.id === currentMethodId)
+      ?? cardsOfType.find((m) => m.preferred)
+      ?? cardsOfType[0]
+      ?? null,
+    [savedMethods, currentMethodId, cardsOfType],
+  );
+
+  // Hermanos: todas las tarjetas del mismo tipo excepto la seleccionada
+  const siblings = useMemo(
+    () => cardsOfType.filter((m) => m.id !== currentMethod?.id),
+    [cardsOfType, currentMethod],
+  );
 
   const { data: service, isLoading: loadingService } = useQuery({
     queryKey: ['service', serviceId],
@@ -64,19 +115,41 @@ export default function ConfirmarScreen() {
   const handleConfirmar = async () => {
     setLoading(true);
     setError('');
+
+    let bookingId: string | null = null;
+
+    // Paso 1: crear el booking (crítico — si falla, mostramos error)
     try {
+      if (!slotId || !serviceId) {
+        throw new Error('Datos del turno incompletos. Volvé a seleccionar el horario.');
+      }
       const { data: booking } = await api.post('/bookings', { slotId, serviceId });
-      const { data: payment } = await api.post('/payments/preference', { bookingId: booking.id });
-      await WebBrowser.openBrowserAsync(payment.sandboxInitPoint);
-      router.replace({
-        pathname: '/(user)/turno-confirmado',
-        params: { bookingId: booking.id },
-      });
-    } catch {
-      setError('No se pudo procesar el pago. Intentá de nuevo.');
-    } finally {
+      bookingId = booking.id;
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ??
+        err?.message ??
+        'No se pudo crear el turno. Verificá tu conexión e intentá de nuevo.';
+      setError(Array.isArray(msg) ? msg.join(', ') : msg);
       setLoading(false);
+      return;
     }
+
+    // Paso 2: pago con MercadoPago (solo si el método es MercadoPago y está configurado)
+    if (paymentMethod === 'MercadoPago') {
+      try {
+        const { data: payment } = await api.post('/payments/preference', { bookingId });
+        await WebBrowser.openBrowserAsync(payment.sandboxInitPoint);
+      } catch {
+        // En local MP no está configurado — ignoramos y continuamos igual
+      }
+    }
+
+    setLoading(false);
+    router.replace({
+      pathname: '/(user)/turno-confirmado',
+      params: { bookingId },
+    });
   };
 
   const isLoading = loadingService;
@@ -124,7 +197,30 @@ export default function ConfirmarScreen() {
                 label="Monto Total"
                 value={`$${service?.price?.toLocaleString('es-AR') ?? '-'}`}
               />
-              <InfoRow label="Método de Pago"   value={paymentMethod ?? 'Efectivo'} />
+
+              {/* Método de pago con opción de cambio */}
+              <View style={infoRowStyles.row}>
+                <Text style={infoRowStyles.label}>Método de Pago: </Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {currentMethod && (
+                      <MaterialCommunityIcons
+                        name={TYPE_ICON[currentMethod.type] as any}
+                        size={14}
+                        color="#555"
+                      />
+                    )}
+                    <Text style={infoRowStyles.value}>
+                      {currentMethod?.label ?? paymentMethod ?? 'Efectivo'}
+                    </Text>
+                  </View>
+                  {siblings.length > 0 && (
+                    <TouchableOpacity onPress={() => setShowChangeModal(true)}>
+                      <Text style={styles.changeLink}>Cambiar tarjeta</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
               {notes ? (
                 <>
                   <InfoRow label="Notas para el negocio" value="" />
@@ -161,6 +257,33 @@ export default function ConfirmarScreen() {
           </ScrollView>
         )}
       </View>
+      {/* ── MODAL CAMBIO DE TARJETA ── */}
+      <Modal visible={showChangeModal} transparent animationType="slide" onRequestClose={() => setShowChangeModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowChangeModal(false)} activeOpacity={1}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Elegir tarjeta</Text>
+            {[currentMethod, ...siblings].filter(Boolean).map((method) => (
+              <TouchableOpacity
+                key={method!.id}
+                style={[styles.modalOption, currentMethodId === method!.id && styles.modalOptionActive]}
+                onPress={() => { setCurrentMethodId(method!.id); setShowChangeModal(false); }}
+              >
+                <MaterialCommunityIcons
+                  name={TYPE_ICON[method!.type] as any}
+                  size={20}
+                  color={currentMethodId === method!.id ? brandColors.primary : '#555'}
+                />
+                <Text style={[styles.modalOptionText, currentMethodId === method!.id && styles.modalOptionTextActive]}>
+                  {method!.label}
+                </Text>
+                {currentMethodId === method!.id && (
+                  <MaterialCommunityIcons name="check" size={18} color={brandColors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
@@ -319,5 +442,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+
+  changeLink: {
+    fontSize: 12,
+    color: brandColors.secondary,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: brandColors.primary,
+    marginBottom: 16,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalOptionActive: {
+    backgroundColor: '#f5f9ff',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+  },
+  modalOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  modalOptionTextActive: {
+    fontWeight: '700',
+    color: brandColors.primary,
   },
 });

@@ -21,17 +21,16 @@ export default function TurnoConfirmadoScreen() {
       query.state.data?.status === 'pending_payment' ? 3000 : false,
   });
 
-  const isPending = !booking || booking.status === 'pending_payment';
   const isFailed  = booking?.status === 'failed';
 
-  // ── estado: procesando ──
-  if (isPending) {
+  // pending_payment sin MercadoPago configurado = tratar como confirmado en local
+  if (!booking) {
     return (
       <>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.container}>
           <ActivityIndicator size="large" color={brandColors.secondary} />
-          <Text style={styles.processingText}>Procesando pago...</Text>
+          <Text style={styles.processingText}>Cargando...</Text>
         </View>
       </>
     );

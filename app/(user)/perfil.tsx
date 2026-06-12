@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Linking,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -109,7 +110,11 @@ export default function PerfilScreen() {
         <View style={styles.group}>
           <Text style={styles.groupTitle}>Actividad</Text>
           <View style={styles.groupCard}>
-            <MenuItem icon="credit-card-outline" label="Medios de Pago" />
+            <MenuItem
+              icon="credit-card-outline"
+              label="Medios de Pago"
+              onPress={() => router.push('/(user)/medios-pago')}
+            />
           </View>
         </View>
 
@@ -123,8 +128,8 @@ export default function PerfilScreen() {
             <View style={styles.sep} />
             <MenuItem
               icon="store-outline"
-              label="Registrar mi negocio"
-              onPress={() => router.push('/(auth)/register-partner' as any)}
+              label="Quiero registrar un negocio"
+              onPress={() => Linking.openURL('http://localhost:5173/register-business')}
             />
           </View>
         </View>

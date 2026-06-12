@@ -58,6 +58,7 @@ export default function UserLayout() {
       />
 
       {/* ── Pantallas y rutas ocultas del tab bar ── */}
+      <Tabs.Screen name="medios-pago"           options={{ href: null }} />
       <Tabs.Screen name="catalogo"             options={{ href: null }} />
       <Tabs.Screen name="confirmar"            options={{ href: null }} />
       <Tabs.Screen name="turno-confirmado"     options={{ href: null }} />

@@ -35,21 +35,29 @@ function formatDatetime(datetime: string): string {
 const STATUS_CHIP: Record<Booking['status'], { label: string; bg: string; color: string }> = {
   confirmed:       { label: 'Confirmado',     bg: '#4caf50', color: '#fff' },
   pending_payment: { label: 'Pago pendiente', bg: '#ff9800', color: '#fff' },
-  completed:       { label: 'Confirmado',     bg: '#555',    color: '#fff' },  // historial
+  completed:       { label: 'Completado',     bg: '#555',    color: '#fff' },
   cancelled:       { label: 'Cancelado',      bg: brandColors.accent, color: '#fff' },
   failed:          { label: 'Fallido',        bg: '#c62828', color: '#fff' },
 };
 
+const PAYMENT_LABEL: Record<Booking['status'], string | null> = {
+  pending_payment: 'Pendiente de pago',
+  confirmed:       'Pago confirmado',
+  completed:       'Pago confirmado',
+  cancelled:       null,
+  failed:          'Pago fallido',
+};
+
 function isUpcoming(b: Booking): boolean {
   if (b.status === 'cancelled' || b.status === 'failed' || b.status === 'completed') return false;
-  if (!b.slot?.datetime) return b.status === 'pending_payment';
+  if (!b.slot?.datetime) return false;
   return new Date(b.slot.datetime) >= new Date();
 }
 
 function isHistory(b: Booking): boolean {
   if (b.status === 'cancelled' || b.status === 'failed' || b.status === 'completed') return true;
   if (!b.slot?.datetime) return false;
-  return new Date(b.slot.datetime) < new Date();   // confirmado pero fecha pasada
+  return new Date(b.slot.datetime) < new Date();
 }
 
 // ── componente de tarjeta ─────────────────────────────────
@@ -67,6 +75,7 @@ function BookingCard({
   const avatarColor = getAvatarColor(partner?.id ?? item.id);
   const initial     = (partner?.name ?? '?').charAt(0).toUpperCase();
   const chip        = STATUS_CHIP[item.status];
+  const paymentLabel = PAYMENT_LABEL[item.status];
 
   return (
     <View style={card.container}>
@@ -85,6 +94,18 @@ function BookingCard({
             <View style={card.dateRow}>
               <MaterialCommunityIcons name="clock-outline" size={12} color="#aaa" />
               <Text style={card.dateText}>{formatDatetime(item.slot.datetime)}</Text>
+            </View>
+          ) : null}
+          {paymentLabel ? (
+            <View style={card.dateRow}>
+              <MaterialCommunityIcons
+                name={item.status === 'pending_payment' ? 'credit-card-clock-outline' : 'check-circle-outline'}
+                size={12}
+                color={item.status === 'pending_payment' ? '#ff9800' : '#4caf50'}
+              />
+              <Text style={[card.paymentText, item.status === 'pending_payment' && card.paymentPending]}>
+                {paymentLabel}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -159,8 +180,10 @@ const card = StyleSheet.create({
   info: { flex: 1 },
   partnerName: { fontSize: 15, fontWeight: '700', color: '#1a1a1a', marginBottom: 2 },
   serviceName: { fontSize: 13, color: '#555', marginBottom: 4 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   dateText: { fontSize: 12, color: '#aaa' },
+  paymentText: { fontSize: 12, color: '#4caf50' },
+  paymentPending: { color: '#ff9800' },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 4,

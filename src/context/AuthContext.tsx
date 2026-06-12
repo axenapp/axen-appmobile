@@ -10,7 +10,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (updated: Partial<User>) => Promise<void>;
   isAuthenticated: boolean;
-  isPartner: boolean;
   isLoading: boolean;
 }
 
@@ -79,7 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateUser,
         isAuthenticated: !!token,
-        isPartner: user?.role === 'partner',
         isLoading,
       }}
     >
